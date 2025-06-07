@@ -32,6 +32,9 @@ from models.gpt2 import GPT2Model
 
 from optimizer import AdamW
 
+# PEFT(LoRA) 관련 import 추가
+from peft import LoraConfig, get_peft_model
+
 TQDM_DISABLE = False
 
 # Fix the random seed.
@@ -52,6 +55,18 @@ class ParaphraseGPT(nn.Module):
     super().__init__()
     self.gpt = GPT2Model.from_pretrained(model=args.model_size, d=args.d, l=args.l, num_heads=args.num_heads)
     self.paraphrase_detection_head = nn.Linear(args.d, 2)  # Paraphrase detection has two outputs: 1 (yes) or 0 (no).
+
+    # LoRA 적용 (PEFT)
+    lora_config = LoraConfig(
+        r=8,
+        lora_alpha=32,
+        target_modules=["query", "key", "value", "attention_dense"],
+        lora_dropout=0.1,
+        bias="none",
+        task_type="CAUSAL_LM"
+    )
+    self.gpt = get_peft_model(self.gpt, lora_config)
+    print("[INFO] LoRA가 GPT2Model에 적용되었습니다.")
 
     # By default, fine-tune the full model.
     for param in self.gpt.parameters():
